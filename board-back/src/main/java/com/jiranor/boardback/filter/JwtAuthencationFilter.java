@@ -2,6 +2,12 @@ package com.jiranor.boardback.filter;
 
 import java.io.IOException;
 
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -23,7 +29,40 @@ public class JwtAuthencationFilter extends OncePerRequestFilter{
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-      
+
+                try {
+                    String token= parseBearerToken(request);
+
+                    if(token==null){
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                    String email= jwtProvider.validate(token);
+    
+                    if(email==null){
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+    
+                  AbstractAuthenticationToken authenticationToken= 
+                  new UsernamePasswordAuthenticationToken(email,null, AuthorityUtils.NO_AUTHORITIES);
+                  
+                  authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request)); //인증요청 세부 정보
+    
+                  SecurityContext securityContext= SecurityContextHolder.createEmptyContext();
+                  securityContext.setAuthentication(authenticationToken);
+    
+                  //외부에서 사용할수있도록
+                  SecurityContextHolder.setContext(securityContext);
+        
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                filterChain.doFilter(request, response);
+
+                
+
 
     }
 
